@@ -60,7 +60,7 @@ process.on("unhandledRejection", (reason, p) => {
     let last_received_message_other_user = '';
     let last_sent_message_interval = null;
     let sentMessages = [];
-    //////////////////////////////////////////////    
+    //////////////////////////////////////////////
 
     const executablePath = findChrome().pop() || null;
     const tmpPath = path.resolve(__dirname, config.data_dir);
@@ -112,7 +112,7 @@ process.on("unhandledRejection", (reason, p) => {
 
       await page.waitFor(networkIdleTimeout);
 
-      //debug(page);      
+      //debug(page);
 
       const title = await page.evaluate(() => {
 
@@ -127,38 +127,84 @@ process.on("unhandledRejection", (reason, p) => {
         console.log(logSymbols.error, chalk.red('Could not open whatsapp web, most likely got browser upgrade message....'));
         process.exit();
       }
+      await page.addScriptTag({ content: `${simulateMouseEvents}`});
 
       startChat(user);
 
-      readCommands();
-    })
+      await readCommands();
+    });
 
     // allow user to type on console and read it
     function readCommands() {
       stdin.resume();
 
-      stdin.on('data', function (data) {
+      stdin.on('data', async function (data) {
         let message = data.toString().trim();
-
-        // check for command "--chat UserName" to start new chat with that user
-        if (message.toLowerCase().indexOf('--chat') > -1) {
-          let new_user = message.split(" ").slice(1).join(" ");
-
-          if (new_user) {
-            startChat(new_user);
-            user = new_user;
-          } else {
-            console.log(logSymbols.error, chalk.red('user name not specified!'));
+        if(message.toLowerCase().indexOf('--send_by_file') > -1){
+          var numbers = fs.readFileSync('./numbers.txt').toString().split("\n");
+          var message_template = fs.readFileSync('./message.txt').toString();
+          for(k in numbers) {
+            if (numbers[k].length === 0 ){
+              continue;
+            }
+            await clickNewChat();
+            await clickSearch();
+            await writeSearchString(numbers[k]);
+            var is_select = await selectChat();
+            await sleep(1000);
+            if(is_select){
+              await typeMessage(message_template);
+            }
           }
-        }
-        // clear chat screen
-        else if (message.toLowerCase().indexOf('--clear') > -1) {
-          process.stdout.write(ansiEscapes.clearScreen);
-        } else {
-          typeMessage(message);
-        }
 
+        }
         stdin.resume();
+      });
+    }
+
+    async function clickNewChat() {
+      return await page.evaluate(function () {
+        return simulateMouseEvents(document.querySelector("[title='Новый чат']"), 'mousedown');
+      });
+    }
+
+    async function clickSearch(){
+      return await page.evaluate(function () {
+        return simulateMouseEvents(document.querySelector('[data-icon="search"]'), 'mousedown')
+      });
+    }
+
+    async function writeSearchString(search){
+      await page.evaluate(function (search) {
+        let input = document.querySelector('[title="Поиск контактов"]');
+        let lastValue = input.value;
+        input.value = search;
+        let event = new Event('input', { bubbles: true });
+        event.simulated = true;
+        let tracker = input._valueTracker;
+        if (tracker) {
+          tracker.setValue(lastValue);
+        }
+        input.dispatchEvent(event);
+      }, search);
+    }
+    async function selectChat(){
+      await sleep(1000);
+      return await page.evaluate(function () {
+        var select = document.querySelector(".o_uNe .X7YrQ ._3vpWv");
+        if (typeof(select) != 'undefined' && select != null){
+          select.click();
+          return true;
+        }
+        // simulateMouseEvents(select, 'mousedown');
+        // select.click();
+        return false;
+      });
+    }
+    async function openChaCha(){
+
+      return await page.evaluate(function () {
+        return document.querySelector('#main > header span[title="Chacha’s Crew"]').click()
       });
     }
 
@@ -203,21 +249,6 @@ process.on("unhandledRejection", (reason, p) => {
 
         return el ? el.innerText : '';
       }, selector.last_message_sent);
-
-      if (message == messageSent) {
-        print("You: " + message, config.sent_message_color);
-
-        // setup interval for read receipts
-        if (config.read_receipts) {
-          last_sent_message_interval = setInterval(function () {
-            isLastMessageRead(user, message);
-          }, (config.check_message_interval));
-        }
-
-      }
-
-      // see if they sent a new message
-      readLastOtherPersonMessage();
     }
 
     // read user's name from conversation thread
@@ -227,159 +258,6 @@ process.on("unhandledRejection", (reason, p) => {
 
         return el ? el.innerText : '';
       }, selector.user_name);
-    }
-
-    // read any new messages sent by specified user
-    async function readLastOtherPersonMessage() {
-
-      let message = '';
-      let name = await getCurrentUserName();
-
-      if (!name) {
-        return false;
-      }
-
-      // read last message sent by other user
-      message = await page.evaluate((selector) => {
-
-        let nodes = document.querySelectorAll(selector);
-        let el = nodes[nodes.length - 1];
-
-        if (!el) {
-          return '';
-        }
-
-        // check if it is picture message
-
-        /*
-        if (el.classList.contains('message-image')) {
-          return 'Picture Message';
-        }
-        */
-
-        let picNodes = el.querySelectorAll("img[src*='blob']");
-        let isPicture = picNodes[picNodes.length - 1];
-
-        if (isPicture) {
-          return 'Picture Message';
-        }
-
-        // check if it is gif message
-        let gifNodes = el.querySelectorAll("div[style*='background-image']");
-        let isGif = gifNodes[gifNodes.length - 1];
-
-        if (isGif) {
-          return 'Gif Message';
-        }
-
-        // check if it is video message
-        let vidNodes = el.querySelectorAll(".video-thumb");
-        let isVideo = vidNodes[vidNodes.length - 1];
-
-        if (isVideo) {
-          return 'Video Message';
-        }
-
-        // check if it is voice message
-        let audioNodes = el.querySelectorAll("audio");
-        let isAudio = audioNodes[audioNodes.length - 1];
-
-        if (isAudio) {
-          return 'Voice Message';
-        }
-
-        // check if it is emoji message
-        let emojiNodes = el.querySelectorAll("div.selectable-text img.selectable-text");
-        let isEmoji = emojiNodes[emojiNodes.length - 1];
-
-        if (isEmoji) {
-          return 'Emoji Message';
-        }
-
-        // text message
-        nodes = el.querySelectorAll('span.selectable-text');
-        el = nodes[nodes.length - 1];
-
-        return el ? el.innerText : '';
-
-      }, selector.last_message);
-
-
-      if (message) {
-        if (last_received_message) {
-          if (last_received_message != message) {
-            last_received_message = message;
-            print(name + ": " + message, config.received_message_color);
-
-            // show notification
-            notify(name, message);
-          }
-        } else {
-          last_received_message = message;
-          //print(name + ": " + message, config.received_message_color);
-        }
-
-      }
-    }
-
-    // checks if last message sent is read
-    async function isLastMessageRead(name, message) {
-
-      let is_last_message_read = await page.evaluate((selector) => {
-
-        let nodes = document.querySelectorAll(selector);
-        let el = nodes[nodes.length - 1];
-
-        if (el) {
-          let readHTML = el.outerHTML;
-
-          if (readHTML.length) {
-            return readHTML.indexOf('data-icon="msg-dblcheck-ack"') > -1;
-          }
-        }
-
-        return false;
-      }, selector.last_message_read);
-
-      if (is_last_message_read) {
-        if (config.read_receipts && last_sent_message_interval) {
-          // make sure we don't report for same message again
-          if (!sentMessages.includes(message)) {
-            console.log('\n' + logSymbols.success, chalk.gray(message) + '\n');
-
-            sentMessages.push(message);
-
-            clearInterval(last_sent_message_interval);
-          }
-        }
-      }
-
-    }
-
-    // checks for any new messages sent by all other users
-    async function checkNewMessagesAllUsers() {
-      let name = await getCurrentUserName();
-
-      let user = await page.evaluate((selector) => {
-
-        let nodes = document.querySelectorAll(selector);
-        let el = nodes[0];
-
-        return el ? el.innerText : '';
-      }, selector.new_message_user);
-
-      if (user && user != name) {
-        let message = 'You have a new message by "' + user + '". Switch to that user to see the message.';
-
-        if (last_received_message_other_user != message) {
-          print('\n' + message, config.received_message_color_new_user);
-
-          // show notification
-          notify(user, message);
-
-          last_received_message_other_user = message;
-        }
-      }
     }
 
     // prints on console
@@ -425,9 +303,6 @@ process.on("unhandledRejection", (reason, p) => {
 
       }
     }
-
-    setInterval(readLastOtherPersonMessage, (config.check_message_interval));
-    setInterval(checkNewMessagesAllUsers, (config.check_message_interval));
 
   } catch (err) {
     logger.warn(err);
@@ -475,4 +350,12 @@ process.on("unhandledRejection", (reason, p) => {
     return logger;
   }
 
+  function simulateMouseEvents(element, eventName) {
+    var mouseEvent = document.createEvent('MouseEvents');
+    mouseEvent.initEvent(eventName, true, true);
+    element.dispatchEvent(mouseEvent);
+  }
+  function sleep(ms) {
+    return new Promise(resolve => setTimeout(resolve, ms));
+  }
 })();
