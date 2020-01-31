@@ -147,7 +147,10 @@ process.on("unhandledRejection", (reason, p) => {
             if (numbers[k].length === 0 ){
               continue;
             }
+            console.log('pre click new chat');
             await clickNewChat();
+            console.log('pre click new chat');
+            await clickSearch();
             await clickSearch();
             await writeSearchString(numbers[k]);
             var is_select = await selectChat();
@@ -170,7 +173,8 @@ process.on("unhandledRejection", (reason, p) => {
 
     async function clickSearch(){
       return await page.evaluate(function () {
-        return simulateMouseEvents(document.querySelector('[data-icon="search"]'), 'mousedown')
+        const path = '#app > div > div > div._2aMzp > div._10V4p._3A_Ft > span > div > span > div > div:nth-child(2) > div > button';
+        return simulateMouseEvents(document.querySelector(path), 'mousedown')
       });
     }
 
@@ -191,7 +195,9 @@ process.on("unhandledRejection", (reason, p) => {
     async function selectChat(){
       await sleep(1000);
       return await page.evaluate(function () {
-        var select = document.querySelector(".o_uNe .X7YrQ ._3vpWv");
+        const path = '#app > div > div > div._2aMzp > div._10V4p._3A_Ft > span > div > span > div > div._1c8mz.rK2ei > div:nth-child(1) > div >' +
+            ' div > div:nth-child(2) > div > div';
+        var select = document.querySelector(path);
         if (typeof(select) != 'undefined' && select != null){
           select.click();
           return true;
