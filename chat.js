@@ -19,8 +19,8 @@ process.setMaxListeners(0);
 
 // make sure they specified user to chat with
 if (!process.argv[2]) {
-  console.log(logSymbols.error, chalk.red('User argument not specified, exiting...'));
-  process.exit(1);
+	console.log(logSymbols.error, chalk.red('User argument not specified, exiting...'));
+	process.exit(1);
 }
 
 /////////////////////////////////////////////
@@ -29,9 +29,9 @@ let user = '';
 
 // because a username can contain first and last name/spaces, etc
 for (let i = 2; i <= 5; i++) {
-  if (typeof process.argv[i] !== 'undefined') {
-    user += process.argv[i] + ' ';
-  }
+	if (typeof process.argv[i] !== 'undefined') {
+		user += process.argv[i] + ' ';
+	}
 }
 
 user = user.trim();
@@ -39,329 +39,331 @@ user = user.trim();
 
 // catch un-handled promise errors
 process.on("unhandledRejection", (reason, p) => {
-  //console.warn("Unhandled Rejection at: Promise", p, "reason:", reason);
+	//console.warn("Unhandled Rejection at: Promise", p, "reason:", reason);
 });
 
 (async function main() {
 
-  const logger = setUpLogging();
+	const logger = setUpLogging();
 
-  try {
+	try {
 
-    print(boxen('Whatspup', {
-      padding: 1,
-      borderStyle: 'double',
-      borderColor: 'green',
-      backgroundColor: 'green'
-    }));
+		print(boxen('Whatspup', {
+			padding: 1,
+			borderStyle: 'double',
+			borderColor: 'green',
+			backgroundColor: 'green'
+		}));
 
-    // custom vars ///////////////////////////////
-    let last_received_message = '';
-    let last_received_message_other_user = '';
-    let last_sent_message_interval = null;
-    let sentMessages = [];
-    //////////////////////////////////////////////
+		// custom vars ///////////////////////////////
+		let last_received_message = '';
+		let last_received_message_other_user = '';
+		let last_sent_message_interval = null;
+		let sentMessages = [];
+		//////////////////////////////////////////////
 
-    const executablePath = findChrome().pop() || null;
-    const tmpPath = path.resolve(__dirname, config.data_dir);
-    const networkIdleTimeout = 30000;
-    const stdin = process.stdin;
-    const headless = !config.window;
+		const executablePath = findChrome().pop() || null;
+		const tmpPath = path.resolve(__dirname, config.data_dir);
+		const networkIdleTimeout = 30000;
+		const stdin = process.stdin;
+		const headless = !config.window;
 
-    const browser = await puppeteer.launch({
-      headless: headless,
-      //executablePath: executablePath,
-      userDataDir: tmpPath,
-      ignoreHTTPSErrors: true,
-      args: [
-        '--log-level=3', // fatal only
-        //'--start-maximized',
-        '--no-default-browser-check',
-        '--disable-infobars',
-        '--disable-web-security',
-        '--disable-site-isolation-trials',
-        '--no-experiments',
-        '--ignore-gpu-blacklist',
-        '--ignore-certificate-errors',
-        '--ignore-certificate-errors-spki-list',
-        '--disable-gpu',
-        '--disable-extensions',
-        '--disable-default-apps',
-        '--enable-features=NetworkService',
-        '--disable-setuid-sandbox',
-        '--no-sandbox'
-      ]
-    });
+		const browser = await puppeteer.launch({
+			headless: headless,
+			//executablePath: executablePath,
+			userDataDir: tmpPath,
+			ignoreHTTPSErrors: true,
+			args: [
+				'--log-level=3', // fatal only
+				//'--start-maximized',
+				'--no-default-browser-check',
+				'--disable-infobars',
+				'--disable-web-security',
+				'--disable-site-isolation-trials',
+				'--no-experiments',
+				'--ignore-gpu-blacklist',
+				'--ignore-certificate-errors',
+				'--ignore-certificate-errors-spki-list',
+				'--disable-gpu',
+				'--disable-extensions',
+				'--disable-default-apps',
+				'--enable-features=NetworkService',
+				'--disable-setuid-sandbox',
+				'--no-sandbox'
+			]
+		});
 
-    const page = await browser.newPage();
-    await page.setUserAgent('Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/73.0.3641.0 Safari/537.36');
+		const page = await browser.newPage();
+		await page.setUserAgent('Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/73.0.3641.0 Safari/537.36');
 
-    //await page.setViewport({width: 1366, height:768});
-    await page.setRequestInterception(true);
+		//await page.setViewport({width: 1366, height:768});
+		await page.setRequestInterception(true);
 
-    page.on('request', (request) => {
-      request.continue();
-    });
+		page.on('request', (request) => {
+			request.continue();
+		});
 
-    print(gradient.rainbow('Initializing...\n'));
+		print(gradient.rainbow('Initializing...\n'));
 
-    page.goto('https://web.whatsapp.com/', {
-      waitUntil: 'networkidle2',
-      timeout: 0
-    }).then(async function (response) {
+		page.goto('https://web.whatsapp.com/', {
+			waitUntil: 'networkidle2',
+			timeout: 0
+		}).then(async function (response) {
 
-      await page.waitFor(networkIdleTimeout);
+			await page.waitFor(networkIdleTimeout);
 
-      //debug(page);
+			//debug(page);
 
-      const title = await page.evaluate(() => {
+			const title = await page.evaluate(() => {
 
-        let nodes = document.querySelectorAll('.window-title');
-        let el = nodes[nodes.length - 1];
+				let nodes = document.querySelectorAll('.window-title');
+				let el = nodes[nodes.length - 1];
 
-        return el ? el.innerHTML : '';
-      });
+				return el ? el.innerHTML : '';
+			});
 
-      // this means browser upgrade warning came up for some reasons
-      if (title && title.includes('Google Chrome 36+')) {
-        console.log(logSymbols.error, chalk.red('Could not open whatsapp web, most likely got browser upgrade message....'));
-        process.exit();
-      }
-      await page.addScriptTag({ content: `${simulateMouseEvents}`});
+			// this means browser upgrade warning came up for some reasons
+			if (title && title.includes('Google Chrome 36+')) {
+				console.log(logSymbols.error, chalk.red('Could not open whatsapp web, most likely got browser upgrade message....'));
+				process.exit();
+			}
+			await page.addScriptTag({content: `${simulateMouseEvents}`});
 
-      startChat(user);
+			startChat(user);
 
-      await readCommands();
-    });
+			await readCommands();
+		});
 
-    // allow user to type on console and read it
-    function readCommands() {
-      stdin.resume();
+		// allow user to type on console and read it
+		function readCommands() {
+			stdin.resume();
 
-      stdin.on('data', async function (data) {
-        let message = data.toString().trim();
-        if(message.toLowerCase().indexOf('--send_by_file') > -1){
-          var numbers = fs.readFileSync('./numbers.txt').toString().split("\n");
-          var message_template = fs.readFileSync('./message.txt').toString();
-          for(k in numbers) {
-            if (numbers[k].length === 0 ){
-              continue;
-            }
-            console.log('pre click new chat');
-            await clickNewChat();
-            console.log('pre click new chat');
-            await clickSearch();
-            await clickSearch();
-            await writeSearchString(numbers[k]);
-            var is_select = await selectChat();
-            await sleep(1000);
-            if(is_select){
-              await typeMessage(message_template);
-            }
-          }
+			stdin.on('data', async function (data) {
+				let message = data.toString().trim();
+				if (message.toLowerCase().indexOf('--send_by_file') > -1) {
+					var numbers = fs.readFileSync('./numbers.txt').toString().split("\n");
+					var message_template = fs.readFileSync('./message.txt').toString();
+					for (k in numbers) {
+						if (numbers[k].length === 0) {
+							continue;
+						}
+						await clickNewChat();
+						await writeSearchString(numbers[k]);
+						var is_select = await selectChat();
+						await sleep(1000);
+						if (is_select) {
+							await typeMessage(message_template);
+						}
+					}
 
-        }
-        stdin.resume();
-      });
-    }
+				}
+				stdin.resume();
+			});
+		}
 
-    async function clickNewChat() {
-      return await page.evaluate(function () {
-        return simulateMouseEvents(document.querySelector("[title='Новый чат']"), 'mousedown');
-      });
-    }
+		async function clickNewChat() {
+			var path = '//span[@data-icon="chat"]';
+			await click(path)
+		}
 
-    async function clickSearch(){
-      return await page.evaluate(function () {
-        const path = '#app > div > div > div._2aMzp > div._10V4p._3A_Ft > span > div > span > div > div:nth-child(2) > div > button';
-        return simulateMouseEvents(document.querySelector(path), 'mousedown')
-      });
-    }
+		async function click(path) {
+			const cord = await elemCenter(path);
+			await page.mouse.click(cord.x, cord.y, {button: 'left'});
+		}
 
-    async function writeSearchString(search){
-      await page.evaluate(function (search) {
-        let input = document.querySelector('[title="Поиск контактов"]');
-        let lastValue = input.value;
-        input.value = search;
-        let event = new Event('input', { bubbles: true });
-        event.simulated = true;
-        let tracker = input._valueTracker;
-        if (tracker) {
-          tracker.setValue(lastValue);
-        }
-        input.dispatchEvent(event);
-      }, search);
-    }
-    async function selectChat(){
-      await sleep(1000);
-      return await page.evaluate(function () {
-        const path = '#app > div > div > div._2aMzp > div._10V4p._3A_Ft > span > div > span > div > div._1c8mz.rK2ei > div:nth-child(1) > div >' +
-            ' div > div:nth-child(2) > div > div';
-        var select = document.querySelector(path);
-        if (typeof(select) != 'undefined' && select != null){
-          select.click();
-          return true;
-        }
-        // simulateMouseEvents(select, 'mousedown');
-        // select.click();
-        return false;
-      });
-    }
-    async function openChaCha(){
+		async function elemCenter(path) {
+			let rect = await page.evaluate(function (path) {
+				var box = document.evaluate(path, document, null, XPathResult.FIRST_ORDERED_NODE_TYPE, null).singleNodeValue.getBoundingClientRect();
+				return JSON.parse(JSON.stringify(box))
+			}, path);
+			let height = (rect.height / 2).toFixed(0) * 1;
+			let width = (rect.width / 2).toFixed(0) * 1;
+			let x = rect.x + height;
+			let y = rect.y + width;
+			return {"x": x, "y": y}
+		}
 
-      return await page.evaluate(function () {
-        return document.querySelector('#main > header span[title="Chacha’s Crew"]').click()
-      });
-    }
+		async function clickSearch() {
+			return await page.evaluate(function () {
+				const path = '#app > div > div > div._2aMzp > div._10V4p._3A_Ft > span > div > span > div > div:nth-child(2) > div > button';
+				return simulateMouseEvents(document.querySelector(path), 'mousedown')
+			});
+		}
 
-    // start chat with specified user
-    async function startChat(user) {
-      // replace selector with selected user
-      let user_chat_selector = selector.user_chat;
-      user_chat_selector = user_chat_selector.replace('XXX', user);
+		async function writeSearchString(search) {
+			console.log(search);
+			await page.keyboard.type(search);
+		}
 
-      await page.waitFor(user_chat_selector);
-      await page.click(user_chat_selector);
-      await page.click(selector.chat_input);
-      let name = getCurrentUserName();
+		async function selectChat() {
+			await sleep(1000);
+			let path = '//div[text()="Контакты"]/../../../div[2]/./div/./div';
+			return await page.evaluate(function (path) {
+				let elem = document.evaluate(path, document, null, XPathResult.FIRST_ORDERED_NODE_TYPE, null).singleNodeValue;
+				if (elem) {
+					elem.click();
+					return true;
+				}
+				return false;
+			}, path);
+		}
 
-      if (name) {
-        console.log(logSymbols.success, chalk.bgGreen('You can chat now :-)'));
-        console.log(logSymbols.info, chalk.bgRed('Press Ctrl+C twice to exit any time.\n'));
-      } else {
-        console.log(logSymbols.warning, 'Could not find specified user "' + user + '"in chat threads\n');
-      }
-    }
+		async function openChaCha() {
 
-    // type user-supplied message into chat window for selected user
-    async function typeMessage(message) {
-      let parts = message.split('\n');
+			return await page.evaluate(function () {
+				return document.querySelector('#main > header span[title="Chacha’s Crew"]').click()
+			});
+		}
 
-      for (var i = 0; i < parts.length; i++) {
-        await page.keyboard.down('Shift');
-        await page.keyboard.press('Enter');
-        await page.keyboard.up('Shift');
+		// start chat with specified user
+		async function startChat(user) {
+			// replace selector with selected user
+			let user_chat_selector = selector.user_chat;
+			user_chat_selector = user_chat_selector.replace('XXX', user);
 
-        await page.keyboard.type(parts[i]);
-      }
+			await page.waitFor(user_chat_selector);
+			await page.click(user_chat_selector);
+			await page.click(selector.chat_input);
+			let name = getCurrentUserName();
 
-      await page.keyboard.press('Enter');
+			if (name) {
+				console.log(logSymbols.success, chalk.bgGreen('You can chat now :-)'));
+				console.log(logSymbols.info, chalk.bgRed('Press Ctrl+C twice to exit any time.\n'));
+			} else {
+				console.log(logSymbols.warning, 'Could not find specified user "' + user + '"in chat threads\n');
+			}
+		}
 
-      // verify message is sent
-      let messageSent = await page.evaluate((selector) => {
+		// type user-supplied message into chat window for selected user
+		async function typeMessage(message) {
+			let parts = message.split('\n');
 
-        let nodes = document.querySelectorAll(selector);
-        let el = nodes[nodes.length - 1];
+			for (var i = 0; i < parts.length; i++) {
+				await page.keyboard.down('Shift');
+				await page.keyboard.press('Enter');
+				await page.keyboard.up('Shift');
 
-        return el ? el.innerText : '';
-      }, selector.last_message_sent);
-    }
+				await page.keyboard.type(parts[i]);
+			}
 
-    // read user's name from conversation thread
-    async function getCurrentUserName() {
-      return await page.evaluate((selector) => {
-        let el = document.querySelector(selector);
+			await page.keyboard.press('Enter');
 
-        return el ? el.innerText : '';
-      }, selector.user_name);
-    }
+			// verify message is sent
+			let messageSent = await page.evaluate((selector) => {
 
-    // prints on console
-    function print(message, color = null) {
+				let nodes = document.querySelectorAll(selector);
+				let el = nodes[nodes.length - 1];
 
-      if (!config.colors || color == null) {
-        console.log('\n' + message + '\n');
-        return;
-      }
+				return el ? el.innerText : '';
+			}, selector.last_message_sent);
+		}
 
-      if (chalk[color]) {
-        console.log('\n' + chalk[color](message) + '\n');
-      } else {
-        console.log('\n' + message + '\n');
-      }
+		// read user's name from conversation thread
+		async function getCurrentUserName() {
+			return await page.evaluate((selector) => {
+				let el = document.querySelector(selector);
 
-    }
+				return el ? el.innerText : '';
+			}, selector.user_name);
+		}
 
-    // send notification
-    function notify(name, message) {
-      if (config.notification_enabled) {
+		// prints on console
+		function print(message, color = null) {
 
-        if (config.notification_hide_message) {
-          message = config.notification_hidden_message || 'New Message Received';
-        }
+			if (!config.colors || color == null) {
+				console.log('\n' + message + '\n');
+				return;
+			}
 
-        if (config.notification_hide_user) {
-          name = config.notification_hidden_user || 'Someone';
-        }
+			if (chalk[color]) {
+				console.log('\n' + chalk[color](message) + '\n');
+			} else {
+				console.log('\n' + message + '\n');
+			}
 
-        notifier.notify({
-          appName: "Snore.DesktopToasts", // Windows FIX - might not be needed
-          title: name,
-          message: message,
-          wait: false,
-          timeout: config.notification_time
-        });
+		}
 
-        // sound/beep
-        if (config.notification_sound) {
-          process.stdout.write(ansiEscapes.beep);
-        }
+		// send notification
+		function notify(name, message) {
+			if (config.notification_enabled) {
 
-      }
-    }
+				if (config.notification_hide_message) {
+					message = config.notification_hidden_message || 'New Message Received';
+				}
 
-  } catch (err) {
-    logger.warn(err);
-  }
+				if (config.notification_hide_user) {
+					name = config.notification_hidden_user || 'Someone';
+				}
 
-  async function debug(page, logContent = true) {
-    if (logContent) {
-      console.log(await page.content());
-    }
+				notifier.notify({
+					appName: "Snore.DesktopToasts", // Windows FIX - might not be needed
+					title: name,
+					message: message,
+					wait: false,
+					timeout: config.notification_time
+				});
 
-    await page.screenshot({
-      path: 'screen.png'
-    });
-  }
+				// sound/beep
+				if (config.notification_sound) {
+					process.stdout.write(ansiEscapes.beep);
+				}
 
-  // setup logging
-  function setUpLogging() {
+			}
+		}
 
-    const env = process.env.NODE_ENV || 'development';
-    const logDir = 'logs';
+	} catch (err) {
+		logger.warn(err);
+	}
 
-    // Create the log directory if it does not exist
-    if (!fs.existsSync(logDir)) {
-      fs.mkdirSync(logDir);
-    }
+	async function debug(page, logContent = true) {
+		if (logContent) {
+			console.log(await page.content());
+		}
 
-    const tsFormat = () => (new Date()).toLocaleTimeString();
+		await page.screenshot({
+			path: 'screen.png'
+		});
+	}
 
-    const logger = new(winston.Logger)({
-      transports: [
-        // colorize the output to the console
-        new(winston.transports.Console)({
-          timestamp: tsFormat,
-          colorize: true,
-          level: 'info'
-        }),
-        new(winston.transports.File)({
-          filename: `${logDir}/log.log`,
-          timestamp: tsFormat,
-          level: env === 'development' ? 'debug' : 'info'
-        })
-      ]
-    });
+	// setup logging
+	function setUpLogging() {
 
-    return logger;
-  }
+		const env = process.env.NODE_ENV || 'development';
+		const logDir = 'logs';
 
-  function simulateMouseEvents(element, eventName) {
-    var mouseEvent = document.createEvent('MouseEvents');
-    mouseEvent.initEvent(eventName, true, true);
-    element.dispatchEvent(mouseEvent);
-  }
-  function sleep(ms) {
-    return new Promise(resolve => setTimeout(resolve, ms));
-  }
+		// Create the log directory if it does not exist
+		if (!fs.existsSync(logDir)) {
+			fs.mkdirSync(logDir);
+		}
+
+		const tsFormat = () => (new Date()).toLocaleTimeString();
+
+		const logger = new (winston.Logger)({
+			transports: [
+				// colorize the output to the console
+				new (winston.transports.Console)({
+					timestamp: tsFormat,
+					colorize: true,
+					level: 'info'
+				}),
+				new (winston.transports.File)({
+					filename: `${logDir}/log.log`,
+					timestamp: tsFormat,
+					level: env === 'development' ? 'debug' : 'info'
+				})
+			]
+		});
+
+		return logger;
+	}
+
+	function simulateMouseEvents(element, eventName) {
+		var mouseEvent = document.createEvent('MouseEvents');
+		mouseEvent.initEvent(eventName, true, true);
+		element.dispatchEvent(mouseEvent);
+	}
+
+	function sleep(ms) {
+		return new Promise(resolve => setTimeout(resolve, ms));
+	}
 })();
