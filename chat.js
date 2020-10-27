@@ -148,9 +148,10 @@ process.on("unhandledRejection", (reason, p) => {
 							continue;
 						}
 						await clickNewChat();
+						await sleep(3000);
 						await writeSearchString(numbers[k]);
 						var is_select = await selectChat();
-						await sleep(1000);
+						await sleep(2000);
 						if (is_select) {
 							await typeMessage(message_template);
 						}
@@ -162,8 +163,11 @@ process.on("unhandledRejection", (reason, p) => {
 		}
 
 		async function clickNewChat() {
+			await page.evaluate(function () {
+				document.evaluate('//span[@data-icon="chat"]', document, null, XPathResult.FIRST_ORDERED_NODE_TYPE, null).singleNodeValue.scrollIntoView(true);
+			});
 			var path = '//span[@data-icon="chat"]';
-			await click(path)
+			await click(path);
 		}
 
 		async function click(path) {
@@ -196,7 +200,7 @@ process.on("unhandledRejection", (reason, p) => {
 		}
 
 		async function selectChat() {
-			await sleep(1000);
+			await sleep(3000);
 			let path = '//div[text()="Контакты"]/../../../div[2]/./div/./div';
 			return await page.evaluate(function (path) {
 				let elem = document.evaluate(path, document, null, XPathResult.FIRST_ORDERED_NODE_TYPE, null).singleNodeValue;
